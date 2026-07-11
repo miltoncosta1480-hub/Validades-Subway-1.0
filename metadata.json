@@ -1,0 +1,6 @@
+{
+  "name": "Validades Subway",
+  "description": "Consulta rápida de validades de produtos Subway com embalagem aberta e fechada na temperatura de 1 a 5°C.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
