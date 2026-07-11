@@ -32,6 +32,24 @@ export default function App() {
   const [selectedBrandIndex, setSelectedBrandIndex] = useState<number>(0);
   const [packagingState, setPackagingState] = useState<'open' | 'closed'>('closed');
   const [startDate, setStartDate] = useState<Date>(new Date());
+  const [isLiveSync, setIsLiveSync] = useState(true);
+  
+  // Sync with the smartphone's real-time clock when live sync is active
+  useEffect(() => {
+    if (!isLiveSync) return;
+    const updateTime = () => {
+      setStartDate(new Date());
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [isLiveSync]);
+
+  // Helper to convert a Date object to datetime-local local string
+  const toDatetimeLocalString = (date: Date) => {
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
   
   // Simulated success toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -120,7 +138,8 @@ export default function App() {
   };
 
   const handleResetToNow = () => {
-    triggerHaptics('Hora de início redefinida');
+    triggerHaptics('Sincronia com relógio reativada');
+    setIsLiveSync(true);
     setStartDate(new Date());
   };
 
@@ -144,10 +163,10 @@ VALIDADE ATÉ: ${expText}
   };
 
   return (
-    <div className="h-screen bg-[#020617] text-[#f3f4f6] flex flex-col selection:bg-emerald-600 selection:text-white overflow-hidden">
+    <div className="min-h-screen bg-[#020617] text-[#f3f4f6] flex flex-col selection:bg-emerald-600 selection:text-white">
       
       {/* Centered mobile-optimized layout block */}
-      <div className="w-full max-w-md mx-auto bg-[#090d16] h-full flex flex-col relative shadow-2xl border-x border-slate-800/60 overflow-hidden">
+      <div className="w-full max-w-md mx-auto bg-[#090d16] min-h-screen flex flex-col relative shadow-2xl border-x border-slate-800/60">
         
         {/* App Header */}
         <div className="bg-gradient-to-b from-[#026a42] to-[#014c2e] p-4 pb-5 text-white relative shadow-lg">
@@ -178,6 +197,13 @@ VALIDADE ATÉ: ${expText}
           </p>
         </div>
 
+        {/* Swipe indicator dots */}
+        <div className="flex justify-center items-center gap-1.5 pt-3 pb-1 select-none">
+          <span className={`h-1.5 rounded-full transition-all duration-300 ${activeTab === 'search' ? 'bg-emerald-500 w-5' : 'bg-slate-800 w-2'}`} />
+          <span className={`h-1.5 rounded-full transition-all duration-300 ${activeTab === 'guide' ? 'bg-emerald-500 w-5' : 'bg-slate-800 w-2'}`} />
+          <span className={`h-1.5 rounded-full transition-all duration-300 ${activeTab === 'about' ? 'bg-emerald-500 w-5' : 'bg-slate-800 w-2'}`} />
+        </div>
+
         {/* Interactive App Toast Message */}
         <AnimatePresence>
           {toastMessage && (
@@ -185,7 +211,7 @@ VALIDADE ATÉ: ${expText}
               initial={{ opacity: 0, y: 30, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.9 }}
-              className="absolute bottom-20 left-4 right-4 bg-slate-900/95 backdrop-blur-md text-white py-2 px-4 rounded-2xl text-xs font-semibold shadow-lg border border-slate-800 text-center z-50 flex items-center justify-center gap-2"
+              className="absolute bottom-24 left-4 right-4 bg-slate-900/95 backdrop-blur-md text-white py-2 px-4 rounded-2xl text-xs font-semibold shadow-lg border border-slate-800 text-center z-50 flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4 text-yellow-400 shrink-0" />
               <span>{toastMessage}</span>
@@ -193,8 +219,41 @@ VALIDADE ATÉ: ${expText}
           )}
         </AnimatePresence>
 
-          {/* Main Container Views with dynamic switching */}
-          <div className="flex-1 overflow-y-auto px-3.5 py-4 flex flex-col gap-4 scrollbar-none pb-24">
+        {/* Main Scrollable Area containing Swipeable Tab Content */}
+        <div className="flex-1 overflow-y-auto scrollbar-none">
+          <motion.div
+            key={activeTab}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(event, info) => {
+              const swipeThreshold = 55;
+              if (info.offset.x < -swipeThreshold) {
+                // Swiped left -> Next Tab
+                if (activeTab === 'search') {
+                  setActiveTab('guide');
+                  triggerHaptics('Diretrizes de Conservação');
+                } else if (activeTab === 'guide') {
+                  setActiveTab('about');
+                  triggerHaptics('Sobre o Autor e o App');
+                }
+              } else if (info.offset.x > swipeThreshold) {
+                // Swiped right -> Previous Tab
+                if (activeTab === 'about') {
+                  setActiveTab('guide');
+                  triggerHaptics('Diretrizes de Conservação');
+                } else if (activeTab === 'guide') {
+                  setActiveTab('search');
+                  triggerHaptics('Consulta de Validades');
+                }
+              }
+            }}
+            initial={{ opacity: 0, x: 15 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -15 }}
+            transition={{ duration: 0.15 }}
+            className="px-3.5 py-4 flex flex-col gap-4 pb-12 touch-pan-y"
+          >
             
             {activeTab === 'search' && (
               <>
@@ -369,15 +428,12 @@ VALIDADE ATÉ: ${expText}
                     Copiar Dados de Validade
                   </button>
 
-                  {/* Small Clock Quick Offset to reset/change */}
-                  <div className="flex items-center justify-between text-[9px] text-slate-500 border-t border-slate-900 pt-2 font-mono">
-                    <span>Início: {formatDateToBr(startDate)}</span>
-                    <button 
-                      onClick={handleResetToNow}
-                      className="text-emerald-400 hover:underline flex items-center gap-0.5"
-                    >
-                      <RotateCcw className="w-2.5 h-2.5" /> Redefinir
-                    </button>
+                  {/* Small Clock Reference Display */}
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-900 pt-2.5 font-mono">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-emerald-500/80" />
+                      Referência: {formatDateToBr(startDate)}
+                    </span>
                   </div>
                 </div>
               </>
@@ -455,51 +511,52 @@ VALIDADE ATÉ: ${expText}
               </div>
             )}
 
-          </div>
+          </motion.div>
+        </div>
 
-          {/* Android Bottom Navigation Bar */}
-          <div className="absolute bottom-0 left-0 right-0 bg-[#1e293b]/95 border-t border-slate-800 py-2 px-4 flex justify-around items-center z-40 backdrop-blur-md">
-            
-            <button
-              onClick={() => {
-                triggerHaptics('Aba de Consulta Ativa');
-                setActiveTab('search');
-              }}
-              className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${
-                activeTab === 'search' ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-400'
-              }`}
-            >
-              <Search className="w-4.5 h-4.5" />
-              <span className="text-[8px] font-bold uppercase tracking-wider">Consulta</span>
-            </button>
+        {/* Sticky/Fixed Bottom Navigation Bar */}
+        <div className="sticky bottom-0 bg-[#090d16]/95 border-t border-slate-800/80 py-3 px-4 flex justify-around items-center z-40 backdrop-blur-md shadow-lg">
+          
+          <button
+            onClick={() => {
+              triggerHaptics('Consulta de Validades');
+              setActiveTab('search');
+            }}
+            className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${
+              activeTab === 'search' ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-400'
+            }`}
+          >
+            <Search className="w-4.5 h-4.5" />
+            <span className="text-[8px] font-bold uppercase tracking-wider">Consulta</span>
+          </button>
 
-            <button
-              onClick={() => {
-                triggerHaptics('Aba de Diretrizes Ativa');
-                setActiveTab('guide');
-              }}
-              className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${
-                activeTab === 'guide' ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-400'
-              }`}
-            >
-              <Info className="w-4.5 h-4.5" />
-              <span className="text-[8px] font-bold uppercase tracking-wider">Diretrizes</span>
-            </button>
+          <button
+            onClick={() => {
+              triggerHaptics('Diretrizes de Conservação');
+              setActiveTab('guide');
+            }}
+            className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${
+              activeTab === 'guide' ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-400'
+            }`}
+          >
+            <Info className="w-4.5 h-4.5" />
+            <span className="text-[8px] font-bold uppercase tracking-wider">Diretrizes</span>
+          </button>
 
-            <button
-              onClick={() => {
-                triggerHaptics('Aba Sobre Ativa');
-                setActiveTab('about');
-              }}
-              className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${
-                activeTab === 'about' ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-400'
-              }`}
-            >
-              <User className="w-4.5 h-4.5" />
-              <span className="text-[8px] font-bold uppercase tracking-wider">Sobre</span>
-            </button>
+          <button
+            onClick={() => {
+              triggerHaptics('Sobre o Autor e o App');
+              setActiveTab('about');
+            }}
+            className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${
+              activeTab === 'about' ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-400'
+            }`}
+          >
+            <User className="w-4.5 h-4.5" />
+            <span className="text-[8px] font-bold uppercase tracking-wider">Sobre</span>
+          </button>
 
-          </div>
+        </div>
 
       </div>
     </div>
