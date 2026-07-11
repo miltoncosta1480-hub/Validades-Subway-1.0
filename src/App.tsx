@@ -144,10 +144,10 @@ VALIDADE ATÉ: ${expText}
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-[#f3f4f6] flex flex-col selection:bg-emerald-600 selection:text-white">
+    <div className="h-screen bg-[#020617] text-[#f3f4f6] flex flex-col selection:bg-emerald-600 selection:text-white overflow-hidden">
       
       {/* Centered mobile-optimized layout block */}
-      <div className="w-full max-w-md mx-auto bg-[#090d16] min-h-screen flex flex-col relative shadow-2xl border-x border-slate-800/60">
+      <div className="w-full max-w-md mx-auto bg-[#090d16] h-full flex flex-col relative shadow-2xl border-x border-slate-800/60 overflow-hidden">
         
         {/* App Header */}
         <div className="bg-gradient-to-b from-[#026a42] to-[#014c2e] p-4 pb-5 text-white relative shadow-lg">
